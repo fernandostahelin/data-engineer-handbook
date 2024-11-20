@@ -11,7 +11,7 @@ CREATE TYPE quality_class AS ENUM ('star', 'good', 'average', 'bad');
 CREATE TABLE IF NOT EXISTS actors (
     actor text,
     actorid text,
-    current_year integer,
+    asofyear integer,
     films films [],
     quality_class quality_class [],
     is_active boolean

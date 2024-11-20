@@ -1,18 +1,26 @@
-MERGE INTO actors AS a
+do $$
+declare date_asofyear integer;
+declare date_past_year integer;
+begin
+		date_past_year := 2023;
+		date_asofyear := date_past_year + 1;
+
+	
+	MERGE INTO actors AS a
 USING (
     WITH last_year AS (
         SELECT
             actor,
             actorid,
-            current_year,
+            asofyear,
             films,
             quality_class,
             is_active
         FROM actors
-        WHERE current_year = 1973
+        WHERE asofyear = date_past_year
     ),
 
-    current_year_table AS (
+    asofyear_table AS (
         SELECT
             actor,
             actorid,
@@ -22,7 +30,7 @@ USING (
             rating,
             filmid
         FROM actor_films
-        WHERE year = 1974
+        WHERE year = date_asofyear
     )
 
     SELECT
@@ -32,7 +40,7 @@ USING (
         || CASE
             WHEN c.year IS NOT NULL
                 THEN
-                    ARRAY_AGG(ROW(c.film, c.votes, c.rating, c.filmid)::films)
+                    ARRAY_AGG(ROW(c.film, c.filmid, c.votes, c.rating)::films)
             ELSE ARRAY[]::films []
         END AS films,
         CASE
@@ -47,13 +55,13 @@ USING (
             ELSE l.quality_class
         END AS quality_class,
         c.year IS NOT NULL AS is_active,
-        1974 AS current_year
-    FROM current_year_table AS c
+        date_asofyear AS asofyear
+    FROM asofyear_table AS c
     FULL OUTER JOIN last_year AS l ON c.actorid = l.actorid
     GROUP BY
         l.actor, l.actorid, c.actorid, c.actor, l.films, c.year, l.quality_class
 ) AS source
-    ON (source.actorid = a.actorid AND source.current_year = a.current_year)
+    ON (source.actorid = a.actorid AND source.asofyear = a.asofyear)
 WHEN MATCHED THEN
     UPDATE SET
         actor = source.actor,
@@ -61,12 +69,14 @@ WHEN MATCHED THEN
         quality_class = source.quality_class,
         is_active = source.is_active
 WHEN NOT MATCHED THEN
-    INSERT (actor, actorid, films, quality_class, is_active, current_year)
+    INSERT (actor, actorid, films, quality_class, is_active, asofyear)
     VALUES (
         source.actor,
         source.actorid,
         source.films,
         source.quality_class,
         source.is_active,
-        source.current_year
+        source.asofyear
     );
+
+end $$;
